@@ -3,7 +3,7 @@ name: Deploy Jekyll at Branch [dev_canary]
 on:
   push:
     branches: ["dev_canary"]  # 修改触发分支为 dev_canary
-   workflow_dispatch:
+  workflow_dispatch:
 
 permissions:
   contents: read
