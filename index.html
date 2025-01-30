@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,32 +7,160 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <nav class="navbar">
-        <div class="nav-container">
-            <div class="brand">
-                <!-- 可在此处添加logo -->
-                <span>浏览器侦探</span>
-            </div>
-            <div class="nav-links">
-                <a href="#home" class="active">主页</a>
-                <a href="#about">关于</a>
-                <a href="#privacy">隐私</a>
-            </div>
+    <div class="container">
+        <h1>浏览器能力检测器</h1>
+        <p class="credit">所有操作在本地执行，不上传云端</p>
+        
+        <div class="section">
+            <h2>基本信息</h2>
+            <div id="basic-info" class="info-grid"></div>
         </div>
-    </nav>
 
-    <main class="container">
-        <header class="page-header">
-            <h1>浏览器能力检测器</h1>
-            <p class="credit">Bro(wser)'s Info Checker</p>
-        </header>
-
-        <div class="dashboard">
-            <!-- 各检测区块保持不变 -->
-            <!-- 原有section结构保持不变 -->
+        <div class="section">
+            <h2>功能检测</h2>
+            <div id="feature-detection" class="info-grid"></div>
         </div>
-    </main>
 
-    <script src="app.js"></script>
+        <div class="section">
+            <h2>权限状态</h2>
+            <div id="permission-status" class="info-grid"></div>
+        </div>
+
+        <div class="section">
+            <h2>隐私相关</h2>
+            <div id="privacy-status" class="info-grid"></div>
+        </div>
+
+        <div class="section">
+            <h2>WebRTC 信息</h2>
+            <div id="webrtc-info" class="info-grid"></div>
+        </div>
+    </div>
+
+    <script>
+        // 基本信息检测
+        function checkBasicInfo() {
+            const info = {
+                'User Agent': navigator.userAgent,
+                '平台': navigator.platform,
+                '语言': navigator.language,
+                'Cookies 启用': navigator.cookieEnabled ? '是' : '否',
+                '在线状态': navigator.onLine ? '在线' : '离线',
+                '设备内存': navigator.deviceMemory || '未知',
+                'CPU 核心数': navigator.hardwareConcurrency || '未知'
+            };
+            populateData('basic-info', info);
+        }
+
+        // 功能检测
+        function checkFeatures() {
+            const features = {
+                '地理定位': 'geolocation' in navigator,
+                '本地存储': 'localStorage' in window,
+                'Service Workers': 'serviceWorker' in navigator,
+                '推送通知': 'PushManager' in window,
+                'WebGL': !!window.WebGLRenderingContext,
+                'Web Audio': !!window.AudioContext,
+                '触摸事件': 'ontouchstart' in window
+            };
+            populateData('feature-detection', features);
+        }
+
+        // 权限检测
+        async function checkPermissions() {
+            const permissions = {
+                '摄像头': {name: 'camera'},
+                '麦克风': {name: 'microphone'},
+                '地理位置': {name: 'geolocation'},
+                '通知': {name: 'notifications'}
+            };
+            
+            const results = {};
+            for (const [name, permission] of Object.entries(permissions)) {
+                try {
+                    const status = await navigator.permissions.query(permission);
+                    results[name] = status.state;
+                } catch {
+                    results[name] = '不支持';
+                }
+            }
+            populateData('permission-status', results);
+        }
+
+        // 隐私相关检测
+        function checkPrivacy() {
+            const privacy = {
+                '请勿跟踪': navigator.doNotTrack || (window.doNotTrack === "1") ? '已启用' : '未启用',
+                '第三方 Cookie': navigator.cookieEnabled ? (document.cookie.includes('test=123') ? '允许' : '阻止') : '未知',
+                '广告拦截': isAdBlockActive() ? '检测到' : '未检测到'
+            };
+            populateData('privacy-status', privacy);
+        }
+
+        // WebRTC 检测
+        function checkWebRTC() {
+            const webrtcInfo = {
+                'WebRTC 支持': !!window.RTCPeerConnection,
+                '本地 IP': getLocalIP()
+            };
+            populateData('webrtc-info', webrtcInfo);
+        }
+
+        // 通用数据填充方法
+        function populateData(containerId, data) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = Object.entries(data)
+                .map(([key, value]) => `
+                    <div class="info-item">
+                        <span class="info-key">${key}:</span>
+                        <span class="info-value ${typeof value === 'boolean' ? (value ? 'yes' : 'no') : ''}">
+                            ${formatValue(value)}
+                        </span>
+                    </div>
+                `).join('');
+        }
+
+        function formatValue(value) {
+            if (typeof value === 'boolean') return value ? '支持' : '不支持';
+            return value;
+        }
+
+        // 辅助函数
+        function getLocalIP() {
+            return new Promise(resolve => {
+                const pc = new RTCPeerConnection({iceServers: []});
+                pc.createDataChannel('');
+                pc.createOffer().then(sdp => pc.setLocalDescription(sdp));
+                pc.onicecandidate = ice => {
+                    if (!ice.candidate) return;
+                    const ip = ice.candidate.candidate.split(' ')[4];
+                    resolve(ip || '未检测到');
+                    pc.close();
+                };
+            });
+        }
+
+        function isAdBlockActive() {
+            return new Promise(resolve => {
+                const ad = document.createElement('div');
+                ad.innerHTML = '&nbsp;';
+                ad.className = 'ad-unit';
+                document.body.appendChild(ad);
+                setTimeout(() => {
+                    resolve(ad.offsetHeight === 0);
+                    document.body.removeChild(ad);
+                }, 100);
+            });
+        }
+
+        // 初始化
+        (async () => {
+            checkBasicInfo();
+            checkFeatures();
+            await checkPermissions();
+            checkPrivacy();
+            checkWebRTC();
+        })();
+    </script>
 </body>
 </html>
