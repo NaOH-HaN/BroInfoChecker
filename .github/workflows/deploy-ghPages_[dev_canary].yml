@@ -1,0 +1,48 @@
+name: Deploy Jekyll at Branch [dev_canary]
+
+on:
+  push:
+    branches: ["dev_canary"]  # 修改触发分支为 dev_canary
+   workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 修改并发组名称，避免与 main 分支部署冲突
+concurrency:
+  group: "pages-canary"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Build with Jekyll
+        uses: actions/jekyll-build-pages@v1
+        with:
+          source: ./
+          destination: ./_site/canary  # 输出到子目录 /canary
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./_site/canary  # 指定上传子目录
+
+  deploy:
+    environment:
+      name: github-pages-canary  # 独立环境名称（便于区分）
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
